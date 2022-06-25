@@ -234,7 +234,9 @@ void MensajeLCD_Var(char* a){
 //Funci�n que escribe una cadena de caracteres variable en la pantalla
 //a es una cadena de caracteres guardada en una variable *char
 //Ejemplo: char aux[4]="Hola"; MensajeLCD_Var(aux);
-    
+	for (int i=0; a[i]!='\0' ; i++) {
+		EscribeLCD_c(a[i]);
+	}    
 }
 void DireccionaLCD(unsigned char a){
 //Funci�n que ubica el cursor en una posici�n especificada

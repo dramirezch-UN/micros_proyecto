@@ -5747,6 +5747,7 @@ RetardoLCD(2);
 void CursorAInicio(){
 
 
+DireccionaLCD(0x80);
 }
 void ComandoLCD(unsigned char a){
 
@@ -5861,7 +5862,9 @@ void MensajeLCD_Var(char* a){
 
 
 
-
+for (int i=0; a[i]!='\0' ; i++) {
+EscribeLCD_c(a[i]);
+}
 }
 void DireccionaLCD(unsigned char a){
 
@@ -5873,7 +5876,7 @@ RetardoLCD(4);
 }
 void FijaCursorLCD(unsigned char fila,unsigned char columna){
 
-# 254
+# 257
 }
 void DesplazaPantallaD(void){
 
@@ -5925,19 +5928,7 @@ _delay((unsigned long)((1000)*(1000000/4000.0)));
 ConfiguraLCD(4);
 InicializaLCD();
 
-EscribeLCD_c('H');
-EscribeLCD_c('o');
-EscribeLCD_c('l');
-EscribeLCD_c('a');
-EscribeLCD_c(' ');
-EscribeLCD_c('m');
-EscribeLCD_c('u');
-EscribeLCD_c('n');
-EscribeLCD_c('d');
-EscribeLCD_c('o');
-DireccionaLCD(0xC0);
-EscribeLCD_c('8');
-EscribeLCD_c(';');
+MensajeLCD_Var("Hola mundo");
 while(1){
 }
 }
