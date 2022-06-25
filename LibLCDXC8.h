@@ -293,4 +293,14 @@ void RetardoLCD(unsigned char a){
 				break;
 	}
 }
+
+
+//Funciones escritas por Daniel
+void EscondeCursorLCD(void){
+//Funci�n que borra toda la pantalla	
+	RS=0;
+	EnviaDato(0b00001100);
+	HabilitaLCD();
+	RetardoLCD(2);
+}
 #endif	/* LIBLCDXC8_H */
