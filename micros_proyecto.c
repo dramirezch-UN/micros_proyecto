@@ -21,9 +21,6 @@ void actualizaResultadosLCD(void) {
     BorraLCD();
     EscribeLCD_n16(mililitros, 5);
     MensajeLCD_Var(" ml");
-    DireccionaLCD(0xC0);
-    EscribeLCD_n16(contadorDePulsos, 5);
-    MensajeLCD_Var(" pulsos");
 } 
 
 
@@ -32,6 +29,7 @@ void main(void){
     IPEN=1;
 
     //Para la interrupcion de teclado
+    // RBPU=0;
     TRISB=0b00100000;
     LATB=0b00000000;
     _B=PORTB; //para poder borrar la bandera RBIF
@@ -41,8 +39,8 @@ void main(void){
     RBIP=0;
 
     //Para el timer 0. 
-    T0CON=0b00000001; // 16 bits, temporizador, prescaler 4
-    TMR0=3036; //1s
+    T0CON=0b00000010; // 16 bits, temporizador, prescaler 8
+    TMR0=3036; //2s
     TMR0IF=0;
     TMR0IE=1;
     TMR0IP=1;
@@ -70,6 +68,19 @@ void main(void){
     }    
 }
 
+
+//Se deja la actualización del LCD como high priority. Como el sensor envía una gran cantidad
+//de pulsos, si se dejara la lectura como high y la actualización como low, nunca actualizaría. 
+void interrupt high_priority high_isr(void){
+    //La actualizacion del LCD se hace con TMR0 para no tener que parar todo el micro
+    //con un delay.
+    if(TMR0IF==1){
+        actualizaResultadosLCD();
+        TMR0=3036;
+        TMR0IF=0;
+    }
+}
+
 void interrupt low_priority low_isr(void){
     //El sensor de flujo YF-S envía una cantidad de pulsos dependiendo de la cantidad de agua que 
     //pase por el. La interrupcion de teclado en RB5 sube el contador cada vez que detecta un pulso.
@@ -80,16 +91,5 @@ void interrupt low_priority low_isr(void){
         if ((_B&0b00100000)==0b00100000){
             contadorDePulsos++;
         }
-        __delay_ms(100); //para probar con botón, borrar cuando se vaya a usar el sensor
-    }
-}
- 
-void interrupt high_priority high_isr(void){
-    //La actualizacion del LCD se hace con TMR0 para no tener que parar todo el micro
-    //con un delay.
-    if(TMR0IF==1){
-        actualizaResultadosLCD();
-        TMR0=3036;
-        TMR0IF=0;
     }
 }
