@@ -15,6 +15,7 @@ int resetCounter = 0; //Cuenta de 0 a 4 (10s) para resetear el contador de ml
 int warningCounter = 0; //Cuenta a 30s con el timer1
 int pasandoAgua = 0;
 int contadorDePulsosLastFast=0;
+int turnOffCounter=0;
 
 
 void actualizaResultadosLCD(void);
@@ -94,6 +95,15 @@ void main(void){
     BAUDCON=0b00001000;
     SPBRG=25;
 
+    //Libera varios pines
+    ADCON1=15;
+
+    //Para bomba
+    TRISA0=1;
+    TRISA1=0;
+    LATA0=0;
+    LATA1=0;
+
     //Se prueba el LCD con un hola que dura 2 segundos antes de ser borrado
     MensajeLCD_Var("Hola ");
     __delay_ms(1000);
@@ -109,9 +119,14 @@ void main(void){
         if (contadorDePulsos == contadorDePulsosLastFast) {
             //El codigo dentro de este if se ejecuta cuando no ha pasado agua por 2 segundos
             warningCounter = 0;
+            turnOffCounter = 0;
         }
         if (contadorDePulsos>=1 & contadorDePulsos<=10){
             TMR1ON=1; //iniciar timer 1
+        }
+        if (RA0==1){
+            RA1=RA1^1;
+            __delay_ms(500);
         }
         //5880 pulsos = 1000 ml
         mililitros=contadorDePulsos*25/147; //No poner parentesis
@@ -145,6 +160,12 @@ void interrupt high_priority high_isr(void){
         if (warningCounter == 14) {
             // TransmitirString("El flujo de agua lleva abierto 30 segundos");
             TransmitirString("30!!");
+        }
+        turnOffCounter++;
+        turnOffCounter %= 30;
+        //Si sale agua por un minuto se apaga la bomba
+        if (turnOffCounter == 29) {
+            RA1=0;
         }
         TMR1=3036;
         TMR1IF=0;
