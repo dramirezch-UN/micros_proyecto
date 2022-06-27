@@ -84,7 +84,7 @@ void main(void){
             //El codigo dentro de este if se ejecuta cuando no ha pasado agua por 2 segundos
             warningCounter = 0;
         }
-        if (contadorDePulsos==1){
+        if (contadorDePulsos>=1 & contadorDePulsos<=10){
             TMR1ON=1; //iniciar timer 1
         }
         //5880 pulsos = 1000 ml
