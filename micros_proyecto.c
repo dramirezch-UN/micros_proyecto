@@ -8,8 +8,10 @@
 
 
 char _B; //para poder borrar la bandera RBIF
-int contadorDePulsos = 0;
-int mililitros=0;
+double contadorDePulsos = 0;
+double mililitros=0;
+double contadorDePulsosLast = 0;
+int resetCounter = 0;
 
 
 void actualizaResultadosLCD(void);
@@ -63,6 +65,10 @@ void main(void){
 
     TMR0ON=1; //iniciar timer 0
     while(1){
+        if (contadorDePulsos == contadorDePulsosLast) {
+            resetCounter = 0;
+            contadorDePulsos = 0;
+        }
         //5880 pulsos = 1000 ml
         mililitros=contadorDePulsos*25/147; //No poner parentesis
     }    
@@ -76,6 +82,11 @@ void interrupt high_priority high_isr(void){
     //con un delay.
     if(TMR0IF==1){
         actualizaResultadosLCD();
+        resetCounter++;
+        resetCounter %= 5;
+        if (resetCounter == 4) {
+            contadorDePulsosLast = contadorDePulsos;
+        }
         TMR0=3036;
         TMR0IF=0;
     }
@@ -90,6 +101,7 @@ void interrupt low_priority low_isr(void){
         RBIF=0;
         if ((_B&0b00100000)==0b00100000){
             contadorDePulsos++;
+            resetCounter = 0;
         }
     }
 }
