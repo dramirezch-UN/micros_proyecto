@@ -11,7 +11,10 @@ char _B; //para poder borrar la bandera RBIF
 double contadorDePulsos = 0;
 double mililitros=0;
 double contadorDePulsosLast = 0;
-int resetCounter = 0;
+int resetCounter = 0; //Cuenta de 0 a 4 (10s) para resetear el contador de ml
+int warningCounter = 0; //Cuenta a 30s con el timer1
+int pasandoAgua = 0;
+int contadorDePulsosLastFast=0;
 
 
 void actualizaResultadosLCD(void);
@@ -40,12 +43,19 @@ void main(void){
     PEIE=1;
     RBIP=0;
 
-    //Para el timer 0. 
+    //Para el timer 0 
     T0CON=0b00000010; // 16 bits, temporizador, prescaler 8
     TMR0=3036; //2s
     TMR0IF=0;
     TMR0IE=1;
     TMR0IP=1;
+
+    //Para el timer 1
+    T1CON=0b10110000;
+    TMR1=3036; //2s
+    TMR1IF=0;
+    TMR1IE=1;
+    TMR1IP=1;
     
     GIEH=1; //Global interrupt enable high
     GIEL=1; //Global interrupt enable low
@@ -66,8 +76,16 @@ void main(void){
     TMR0ON=1; //iniciar timer 0
     while(1){
         if (contadorDePulsos == contadorDePulsosLast) {
+            //El codigo dentro de este if se ejecuta cuando no ha pasado agua por 10 segundos
             resetCounter = 0;
             contadorDePulsos = 0;
+        }
+        if (contadorDePulsos == contadorDePulsosLastFast) {
+            //El codigo dentro de este if se ejecuta cuando no ha pasado agua por 2 segundos
+            warningCounter = 0;
+        }
+        if (contadorDePulsos==1){
+            TMR1ON=1; //iniciar timer 1
         }
         //5880 pulsos = 1000 ml
         mililitros=contadorDePulsos*25/147; //No poner parentesis
@@ -87,8 +105,22 @@ void interrupt high_priority high_isr(void){
         if (resetCounter == 4) {
             contadorDePulsosLast = contadorDePulsos;
         }
+        contadorDePulsosLastFast = contadorDePulsos;
         TMR0=3036;
         TMR0IF=0;
+    }
+
+    //Se usa el timer1 para enviar la señal de aviso al usuario cuando el flujo de agua lleva
+    //abierto mas de 30s
+    if(TMR1IF==1){
+        //Estoy contado de 2 en 2 hasta 30
+        warningCounter++;
+        warningCounter %= 15;
+        if (warningCounter == 14) {
+            MensajeLCD_Var("T1!");
+        }
+        TMR1=3036;
+        TMR1IF=0;
     }
 }
 
