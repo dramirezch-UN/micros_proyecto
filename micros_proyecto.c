@@ -20,7 +20,27 @@ int contadorDePulsosLastFast=0;
 void actualizaResultadosLCD(void);
 void interrupt high_priority high_isr(void);
 void interrupt low_priority low_isr(void);
+void Transmitir(unsigned char valorATransmitir);
+void TransmitirString(char* a);
 
+
+void TransmitirString(char* a){
+	for (int i=0; a[i]!='\0' ; i++) {
+		Transmitir(a[i]);
+	}    
+}
+
+void Transmitir(unsigned char valorATransmitir) {
+    while(TRMT==0);
+    TXREG=0b00000010;
+    while(TRMT==0);
+    //Esta es la transmision importante, el resto es para (intentar) dar formato.
+    TXREG=valorATransmitir; 
+    while(TRMT==0);
+    TXREG=0b00000011;
+    while(TRMT==0);
+    TXREG=0b00000000;
+}
 
 void actualizaResultadosLCD(void) {
     BorraLCD();
@@ -68,6 +88,12 @@ void main(void){
     InicializaLCD();
     EscondeCursorLCD();
 
+    //Para el EUSART (Bluetooth/RS232)
+    TXSTA=0b00100100;
+    RCSTA=0b10000000;
+    BAUDCON=0b00001000;
+    SPBRG=25;
+
     //Se prueba el LCD con un hola que dura 2 segundos antes de ser borrado
     MensajeLCD_Var("Hola ");
     __delay_ms(1000);
@@ -113,11 +139,12 @@ void interrupt high_priority high_isr(void){
     //Se usa el timer1 para enviar la señal de aviso al usuario cuando el flujo de agua lleva
     //abierto mas de 30s
     if(TMR1IF==1){
-        //Estoy contado de 2 en 2 hasta 30
         warningCounter++;
         warningCounter %= 15;
+        //Salta cada ~30s si no se reinicia la precarga
         if (warningCounter == 14) {
-            MensajeLCD_Var("T1!");
+            // TransmitirString("El flujo de agua lleva abierto 30 segundos");
+            TransmitirString("30!!");
         }
         TMR1=3036;
         TMR1IF=0;
