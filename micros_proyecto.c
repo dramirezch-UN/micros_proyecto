@@ -6,18 +6,20 @@
 
 #pragma config LVP=OFF // libera rb5
 
-
+// ----- Variables globales -----
 char _B; //para poder borrar la bandera RBIF
 double contadorDePulsos = 0;
 double mililitros=0;
+
 double contadorDePulsosLast = 0;
+
+//Estas variables se usan para contar tiempo con ayuda del TIMER0
 int resetCounter = 0; //Cuenta de 0 a 4 (10s) para resetear el contador de ml
-int warningCounter = 0; //Cuenta a 30s con el timer1
-int pasandoAgua = 0;
-int contadorDePulsosLastFast=0;
-int turnOffCounter=0;
+int warningCounter = 0; //Cuenta de 0 a 14 (30s) para enviar aviso bluetooth
+int turnOffCounter=0; //Cuenta de 0 a 29 (60s) para apagar bomba
 
 
+// ----- Declaracion de funciones -----
 void actualizaResultadosLCD(void);
 void interrupt high_priority high_isr(void);
 void interrupt low_priority low_isr(void);
@@ -25,12 +27,7 @@ void Transmitir(unsigned char valorATransmitir);
 void TransmitirString(char* a);
 
 
-void TransmitirString(char* a){
-	for (int i=0; a[i]!='\0' ; i++) {
-		Transmitir(a[i]);
-	}    
-}
-
+// ----- Definicion de funciones -----
 void Transmitir(unsigned char valorATransmitir) {
     while(TRMT==0);
     TXREG=0b00000010;
@@ -43,6 +40,12 @@ void Transmitir(unsigned char valorATransmitir) {
     TXREG=0b00000000;
 }
 
+void TransmitirString(char* a){
+	for (int i=0; a[i]!='\0' ; i++) {
+		Transmitir(a[i]);
+	}    
+}
+
 void actualizaResultadosLCD(void) {
     BorraLCD();
     EscribeLCD_n16(mililitros, 5);
@@ -50,7 +53,7 @@ void actualizaResultadosLCD(void) {
 } 
 
 
-
+// ----- main -----
 void main(void){
     IPEN=1;
 
@@ -62,21 +65,14 @@ void main(void){
     RBIF=0;
     RBIE=1;
     PEIE=1;
-    RBIP=0;
+    RBIP=0; //Interrupt priority
 
     //Para el timer 0 
     T0CON=0b00000010; // 16 bits, temporizador, prescaler 8
     TMR0=3036; //2s
     TMR0IF=0;
     TMR0IE=1;
-    TMR0IP=1;
-
-    //Para el timer 1
-    T1CON=0b10110000;
-    TMR1=3036; //2s
-    TMR1IF=0;
-    TMR1IE=1;
-    TMR1IP=1;
+    TMR0IP=1; //Interrupt priority
     
     GIEH=1; //Global interrupt enable high
     GIEL=1; //Global interrupt enable low
@@ -111,22 +107,18 @@ void main(void){
 
     TMR0ON=1; //iniciar timer 0
     while(1){
+        if (RA0==1){
+            RA1=RA1^1;
+            __delay_ms(500);
+        }
+        if (RA1==0){
+            warningCounter = 0;
+            turnOffCounter = 0;
+        }
         if (contadorDePulsos == contadorDePulsosLast) {
             //El codigo dentro de este if se ejecuta cuando no ha pasado agua por 10 segundos
             resetCounter = 0;
             contadorDePulsos = 0;
-        }
-        if (contadorDePulsos == contadorDePulsosLastFast) {
-            //El codigo dentro de este if se ejecuta cuando no ha pasado agua por 2 segundos
-            warningCounter = 0;
-            turnOffCounter = 0;
-        }
-        if (contadorDePulsos>=1 & contadorDePulsos<=10){
-            TMR1ON=1; //iniciar timer 1
-        }
-        if (RA0==1){
-            RA1=RA1^1;
-            __delay_ms(500);
         }
         //5880 pulsos = 1000 ml
         mililitros=contadorDePulsos*25/147; //No poner parentesis
@@ -134,41 +126,37 @@ void main(void){
 }
 
 
-//Se deja la actualización del LCD como high priority. Como el sensor envía una gran cantidad
-//de pulsos, si se dejara la lectura como high y la actualización como low, nunca actualizaría. 
+// ----- Interrupciones -----
 void interrupt high_priority high_isr(void){
-    //La actualizacion del LCD se hace con TMR0 para no tener que parar todo el micro
-    //con un delay.
+    //Se deja la actualización del LCD como high priority. Como el sensor envía una gran cantidad
+    //de pulsos, si se dejara la lectura como high y la actualización como low, nunca actualizaría. 
+    //La actualizacion del LCD se hace con TMR0. Si se hace con delay, nunca actualizaría.
     if(TMR0IF==1){
         actualizaResultadosLCD();
+        
+        //Reinicia el contador si no pasa agua por 10s
         resetCounter++;
         resetCounter %= 5;
         if (resetCounter == 4) {
             contadorDePulsosLast = contadorDePulsos;
         }
-        contadorDePulsosLastFast = contadorDePulsos;
-        TMR0=3036;
-        TMR0IF=0;
-    }
-
-    //Se usa el timer1 para enviar la señal de aviso al usuario cuando el flujo de agua lleva
-    //abierto mas de 30s
-    if(TMR1IF==1){
+        
+        //Avisa por bluetooth si el flujo lleva abierto 30 segundos
         warningCounter++;
         warningCounter %= 15;
-        //Salta cada ~30s si no se reinicia la precarga
         if (warningCounter == 14) {
-            // TransmitirString("El flujo de agua lleva abierto 30 segundos");
-            TransmitirString("30!!");
+            TransmitirString("El flujo lleva abierto 30 segundos.");
         }
+
+        //Apaga la bomba si el flujo lleva abierto 60 segundos
         turnOffCounter++;
-        turnOffCounter %= 30;
-        //Si sale agua por un minuto se apaga la bomba
-        if (turnOffCounter == 29) {
+        turnOffCounter %= 29;
+        if (turnOffCounter == 28) {
             RA1=0;
         }
-        TMR1=3036;
-        TMR1IF=0;
+
+        TMR0=3036;
+        TMR0IF=0;
     }
 }
 
